@@ -11,28 +11,40 @@ class SalesInvoice(SalesInvoiceController):
         super().on_submit()
         if not self.custom_post_to_fdi:
             return
-        api = FBRDigitalInvoicingAPI()
-        response = api.make_request("di_data/v1/di/postinvoicedata_sb", self.get_mapped_data())
-        resdata = response.get("validationResponse")
-        
-        if resdata.get("status") != "Valid":
-            frappe.log_error(
-                title="FBR Digital Invoicing Submission Error",
-                message=frappe.as_json(response, indent=4)
+        data = self.get_mapped_data()
+        api_log = frappe.new_doc("FDI Request Log")
+        api_log.request_data = frappe.as_json(data, indent=4)
+        try:
 
-            )
+            api = FBRDigitalInvoicingAPI()
+            response = api.make_request("di_data/v1/di/postinvoicedata_sb", self.get_mapped_data())
+            resdata = response.get("validationResponse")
+            
+            if resdata.get("status") == "Valid":
+                self.custom_fbr_invoice_no = resdata.get("invoiceStatuses")[0].get("invoiceNo")
+                url = pyqrcode.create(self.custom_fbr_invoice_no)
+                url.svg(frappe.get_site_path()+'/public/files/'+self.name+'_online_qrcode.svg', scale=8)
+                self.custom_qr_code = '/files/'+self.name+'_online_qrcode.svg'
+                api_log.response_data = frappe.as_json(response, indent=4)
+                api_log.save()
+                frappe.msgprint("Invoice successfully submitted to FBR Digital Invoicing.")
+            else:
+                
+                frappe.throw(
+                    f"Error in FBR Digital Invoicing: {resdata.get('invoiceStatuses')[0].get('error')}" 
+                )
+                  
+                
+        except Exception as e:
+            api_log.error = frappe.as_json(e, indent=4)
+            api_log.save()
+                
             frappe.log_error(
-                title="Data",
-                message=frappe.as_json(self.get_mapped_data(), indent=4)
-
+                title="FBR Digital Invoicing API Error",
+                message=str(e)
             )
-            frappe.throw(f"Failed to submit invoice to FBR: {response.get('error', 'Unknown error')}")
-        else:
-            self.custom_fbr_invoice_no = resdata.get("invoiceStatuses")[0].get("invoiceNo")
-            url = pyqrcode.create(self.custom_fbr_invoice_no)
-            url.svg(frappe.get_site_path()+'/public/files/'+self.name+'_online_qrcode.svg', scale=8)
-            self.custom_qr_code = '/files/'+self.name+'_online_qrcode.svg'
-            frappe.msgprint("Invoice successfully submitted to FBR Digital Invoicing.")
+            
+            frappe.throw(f"Error while submitting invoice to FBR: {str(e)}")
     def get_mapped_data(self):
         
         data = {}
