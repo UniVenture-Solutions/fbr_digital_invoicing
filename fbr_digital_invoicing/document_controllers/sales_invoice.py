@@ -9,7 +9,8 @@ import pyqrcode
 class SalesInvoice(SalesInvoiceController):
     def on_submit(self):
         super().on_submit()
-        
+        if not self.custom_post_to_fdi:
+            return
         api = FBRDigitalInvoicingAPI()
         response = api.make_request("di_data/v1/di/postinvoicedata_sb", self.get_mapped_data())
         resdata = response.get("validationResponse")
