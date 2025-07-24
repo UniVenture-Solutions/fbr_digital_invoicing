@@ -82,7 +82,7 @@ class SalesInvoice(SalesInvoiceController):
                 "totalValues": 0,  # Placeholder, adjust as needed
                 "valueSalesExcludingST": item.rate,
                 "fixedNotifiedValueOrRetailPrice": 0,  # Placeholder, adjust as needed
-                "salesTaxApplicable": self.taxes[0].rate if self.taxes else 0,  # Assuming first tax is sales tax
+                "salesTaxApplicable": round(self.taxes[0].tax_amount, 2) if self.taxes else 0,  # Assuming first tax is sales tax
                 "salesTaxWithheldAtSource": 0,  # Placeholder, adjust as needed
                 "extraTax": "",  # Placeholder, adjust as needed
                 "furtherTax": 0,  # Assuming first tax is further tax
