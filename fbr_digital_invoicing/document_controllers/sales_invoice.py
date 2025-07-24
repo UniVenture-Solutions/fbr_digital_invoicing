@@ -30,7 +30,7 @@ class SalesInvoice(SalesInvoiceController):
                 frappe.msgprint("Invoice successfully submitted to FBR Digital Invoicing.")
             else:
                 frappe.throw(
-                    f"Error in FBR Digital Invoicing: {resdata.get('invoiceStatuses')[0].get('error')}" 
+                    "Error in FBR Digital Invoicing" 
                 )
                   
                 
@@ -44,6 +44,8 @@ class SalesInvoice(SalesInvoiceController):
             )
             
             frappe.throw(f"Error while submitting invoice to FBR: {str(e)}")
+
+		api_log.save()
     def get_mapped_data(self):
         
         data = {}
