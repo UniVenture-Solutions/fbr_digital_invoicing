@@ -21,7 +21,7 @@ class SalesInvoice(SalesInvoiceController):
             resdata = response.get("validationResponse")
             
             if resdata.get("status") == "Valid":
-                self.custom_fbr_invoice_no = resdata.get("invoiceStatuses")[0].get("invoiceNo")
+                self.custom_fbr_invoice_no = response.get("invoiceNumber")
                 url = pyqrcode.create(self.custom_fbr_invoice_no)
                 url.svg(frappe.get_site_path()+'/public/files/'+self.name+'_online_qrcode.svg', scale=8)
                 self.custom_qr_code = '/files/'+self.name+'_online_qrcode.svg'
@@ -29,7 +29,6 @@ class SalesInvoice(SalesInvoiceController):
                 api_log.save()
                 frappe.msgprint("Invoice successfully submitted to FBR Digital Invoicing.")
             else:
-                
                 frappe.throw(
                     f"Error in FBR Digital Invoicing: {resdata.get('invoiceStatuses')[0].get('error')}" 
                 )
@@ -41,7 +40,7 @@ class SalesInvoice(SalesInvoiceController):
                 
             frappe.log_error(
                 title="FBR Digital Invoicing API Error",
-                message=str(e)
+                message=frappe.get_traceback()
             )
             
             frappe.throw(f"Error while submitting invoice to FBR: {str(e)}")
