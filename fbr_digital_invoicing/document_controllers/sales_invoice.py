@@ -86,7 +86,7 @@ class SalesInvoice(SalesInvoiceController):
                 "furtherTax": 0,  # Assuming first tax is further tax
                 "sroScheduleNo": "",  # Placeholder, adjust as needed
                 "fedPayable": 0,  # Placeholder, adjust as needed
-                "discount": item.discount_amount or 0,
+                "discount": cint(item.discount_amount) or 0,
                 "saleType": "Goods at standard rate (default)",  # Adjust based on your logic
                 "sroItemSerialNo": ""  # Placeholder, adjust as needed
             }
