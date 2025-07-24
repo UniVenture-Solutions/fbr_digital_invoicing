@@ -29,6 +29,8 @@ class SalesInvoice(SalesInvoiceController):
                 api_log.save()
                 frappe.msgprint("Invoice successfully submitted to FBR Digital Invoicing.")
             else:
+                api_log.response_data = frappe.as_json(response, indent=4)
+                api_log.save()
                 frappe.throw(
                     "Error in FBR Digital Invoicing" 
                 )
@@ -82,7 +84,7 @@ class SalesInvoice(SalesInvoiceController):
                 "totalValues": 0,  # Placeholder, adjust as needed
                 "valueSalesExcludingST": item.rate,
                 "fixedNotifiedValueOrRetailPrice": 0,  # Placeholder, adjust as needed
-                "salesTaxApplicable": round(self.taxes[0].tax_amount, 2) if self.taxes else 0,  # Assuming first tax is sales tax
+                "salesTaxApplicable": round(item.rate * self.taxes[0].rate /100, 2) if self.taxes else 0,  # Assuming first tax is sales tax
                 "salesTaxWithheldAtSource": 0,  # Placeholder, adjust as needed
                 "extraTax": "",  # Placeholder, adjust as needed
                 "furtherTax": 0,  # Assuming first tax is further tax
