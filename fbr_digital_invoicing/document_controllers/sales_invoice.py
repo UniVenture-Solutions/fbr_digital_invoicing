@@ -17,7 +17,7 @@ class SalesInvoice(SalesInvoiceController):
         try:
 
             api = FBRDigitalInvoicingAPI()
-            response = api.make_request("di_data/v1/di/postinvoicedata_sb", self.get_mapped_data())
+            response = api.make_request("POST", "di_data/v1/di/postinvoicedata_sb", self.get_mapped_data())
             resdata = response.get("validationResponse")
             
             if resdata.get("status") == "Valid":
@@ -75,11 +75,14 @@ class SalesInvoice(SalesInvoiceController):
     def get_items(self):
         items = []
         for item in self.items:
+           
+            uom = self.get_and_set_uom(item.custom_hs_code)
+
             item_data = {
-                "hsCode": frappe.db.get_value("Item", item.item_code, "custom_hs_code") or "0101.2100",  # Default HS Code if not set
+                "hsCode": item.custom_hs_code,  # Default HS Code if not set
                 "productDescription": item.description,
                 "rate": f"{cint(self.taxes[0].rate)}%",
-                "uoM": "Numbers, pieces, units",
+                "uoM": uom,
                 "quantity": item.qty,
                 "totalValues": 0,  # Placeholder, adjust as needed
                 "valueSalesExcludingST": item.rate,
@@ -96,3 +99,19 @@ class SalesInvoice(SalesInvoiceController):
             }
             items.append(item_data)
         return items
+
+    def get_and_set_uom(self, hs_code):
+        hs_code_doc = frappe.new_doc("HS Code")
+        if frappe.db.exists("HS Code", hs_code):
+            hs_code_doc = frappe.get_doc("HS Code", hs_code)
+        
+        api = FBRDigitalInvoicingAPI() 
+        response = api.make_request("GET", f"/pdi/v2/HS_UOM?hs_code={hs_code}&annexure_id=3")
+        if response:
+            #res = response.json()
+            uom = response[0].get("description")
+            hs_code_doc.hs_code = hs_code
+            hs_code_doc.uom = uom
+            hs_code_doc.save()
+            return uom
+        

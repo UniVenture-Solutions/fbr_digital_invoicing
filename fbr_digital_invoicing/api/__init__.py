@@ -18,9 +18,9 @@ class FBRDigitalInvoicingAPI:
         self.session.headers.update(self.headers)
 
 
-    def make_request(self, endpint, data):
+    def make_request(self, method, endpint, data=None):
         self.init_request()
-        request = self.session.post(f"{self.base_url}/{endpint}", json=data)
+        request = self.session.request(method, f"{self.base_url}/{endpint}", json=data)
         if request.status_code != 200:
             
             frappe.log_error(
