@@ -3,7 +3,7 @@ from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice as
 from fbr_digital_invoicing.api import FBRDigitalInvoicingAPI  
 from frappe.utils import cint
 import pyqrcode
-
+    
 
 
 class SalesInvoice(SalesInvoiceController):
@@ -52,7 +52,7 @@ class SalesInvoice(SalesInvoiceController):
         
         data = {}
         data["invoiceType"] = "Sale Invoice"
-        data["invoiceDate"] = self.posting_date
+        data["invoiceDate"] = str(self.posting_date)
         
         data["sellerNTNCNIC"] = self.company_tax_id
         data["sellerBusinessName"] = self.company
@@ -114,4 +114,20 @@ class SalesInvoice(SalesInvoiceController):
             hs_code_doc.uom = uom
             hs_code_doc.save()
             return uom
+        
+@frappe.whitelist()
+def sync_to_fdi(docname):
+    doc = frappe.get_doc("Sales Invoice", docname)
+    
+    if doc.docstatus != 1 or doc.custom_post_to_fdi:
+        frappe.throw("Already synced to FDI.")
+
+    frappe.db.set_value("Sales Invoice", doc.name, "custom_post_to_fdi", 1)
+
+    doc = frappe.get_doc("Sales Invoice", docname)
+    doc.run_method("on_submit")
+
+    frappe.db.commit()
+
+        
         
