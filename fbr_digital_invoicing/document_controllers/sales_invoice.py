@@ -79,7 +79,7 @@ class SalesInvoice(SalesInvoiceController):
             uom = self.get_and_set_uom(item.custom_hs_code)
 
             item_data = {
-                "hsCode": item.custom_hs_code,  # Default HS Code if not set
+                "hsCode": item.custom_hs_code,
                 "productDescription": item.description,
                 "rate": f"{cint(self.taxes[0].rate)}%",
                 "uoM": uom,
@@ -120,7 +120,7 @@ def sync_to_fdi(docname):
     doc = frappe.get_doc("Sales Invoice", docname)
     
     if doc.docstatus != 1 or doc.custom_post_to_fdi:
-        frappe.throw("Already synced to FDI.")
+        frappe.throw("Already synced With FBR.")  
 
     frappe.db.set_value("Sales Invoice", doc.name, "custom_post_to_fdi", 1)
 
