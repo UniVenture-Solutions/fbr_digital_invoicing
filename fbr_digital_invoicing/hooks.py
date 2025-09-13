@@ -130,8 +130,9 @@ doctype_js = {"Sales Invoice" : "public/js/sales_invoice.js"}
 # Override standard doctype classes
 
 override_doctype_class = {
-	"Sales Invoice": "fbr_digital_invoicing.document_controllers.sales_invoice.SalesInvoice"
+    "Sales Invoice": "fbr_digital_invoicing.document_controllers.sales_invoice.SalesInvoice"
 }
+
 
 # Document Events
 # ---------------
