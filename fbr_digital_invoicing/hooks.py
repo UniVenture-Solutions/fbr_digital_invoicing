@@ -242,4 +242,29 @@ override_doctype_class = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+fixtures = [
+    {"dt": "Custom Field", "filters": [
+        [
+            "name", "in", [
+                #Company Fields 
+                "Company-custom_province",
+                #Delivery Note Item Fields
+                "Delivery Note Item-custom_hs_code",
+                #Item Fiels
+                "Item-custom_hs_code",
+                #Sales Invoice Item Fields
+                "Sales Invoice Item-custom_hs_code",
+                "Sales Invoice Item-custom_tax_amount",
+                "Sales Invoice Item-custom_tax_rate",
+                #Sales Invoice Fields
+                "Sales Invoice-custom_fbr_sale_type",
+                "Sales Invoice-custom_post_to_fdi",
+                "Sales Invoice-custom_qr_code",
+                #Sales Order Item Fields
+                "Sales Order Item-custom_hs_code"
+            ]
+        ]
+    ]},
+    "FBR Sale Type"
+]
 
