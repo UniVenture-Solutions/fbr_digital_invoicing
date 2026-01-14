@@ -6,7 +6,10 @@
  "engine": "InnoDB",
  "field_order": [
   "url",
-  "token"
+  "token",
+  "section_break_qx5j",
+  "environment",
+  "make_items_unique"
  ],
  "fields": [
   {
@@ -18,13 +21,30 @@
    "fieldname": "token",
    "fieldtype": "Password",
    "label": "Token"
+  },
+  {
+   "fieldname": "section_break_qx5j",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "sandbox",
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "sandbox\nproduction"
+  },
+  {
+   "default": "1",
+   "fieldname": "make_items_unique",
+   "fieldtype": "Check",
+   "label": "Make Items Unique"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-07-23 15:07:19.394867",
+ "modified": "2025-09-16 22:06:06.308331",
  "modified_by": "Administrator",
  "module": "FBR Digital Invoicing",
  "name": "FBR Digital Invoicing Settings",

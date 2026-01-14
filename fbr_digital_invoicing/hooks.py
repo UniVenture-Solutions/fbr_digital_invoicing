@@ -43,7 +43,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Sales Invoice" : "public/js/sales_invoice.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -130,8 +130,9 @@ app_license = "mit"
 # Override standard doctype classes
 
 override_doctype_class = {
-	"Sales Invoice": "fbr_digital_invoicing.document_controllers.sales_invoice.SalesInvoice"
+    "Sales Invoice": "fbr_digital_invoicing.document_controllers.sales_invoice.SalesInvoice"
 }
+
 
 # Document Events
 # ---------------
@@ -241,4 +242,29 @@ override_doctype_class = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+fixtures = [
+    {"dt": "Custom Field", "filters": [
+        [
+            "name", "in", [
+                #Company Fields 
+                "Company-custom_province",
+                #Delivery Note Item Fields
+                "Delivery Note Item-custom_hs_code",
+                #Item Fiels
+                "Item-custom_hs_code",
+                #Sales Invoice Item Fields
+                "Sales Invoice Item-custom_hs_code",
+                "Sales Invoice Item-custom_tax_amount",
+                "Sales Invoice Item-custom_tax_rate",
+                #Sales Invoice Fields
+                "Sales Invoice-custom_fbr_sale_type",
+                "Sales Invoice-custom_post_to_fdi",
+                "Sales Invoice-custom_qr_code",
+                #Sales Order Item Fields
+                "Sales Order Item-custom_hs_code"
+            ]
+        ]
+    ]},
+    "FBR Sale Type"
+]
 
