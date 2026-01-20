@@ -60,7 +60,7 @@ One-click installation available from Frappe Cloud Marketplace.
 
 ```bash
 cd $PATH_TO_YOUR_BENCH
-bench get-app <repo_url>
+bench get-app https://github.com/UniVenture-Solutions/fbr_digital_invoicing.git --branch version-15
 bench --site your.site.name install-app fbr_digital_invoicing
 bench migrate
 bench restart
