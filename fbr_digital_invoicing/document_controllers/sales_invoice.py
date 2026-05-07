@@ -1,13 +1,17 @@
 import frappe
+import json
+import ast
+import re
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice as SalesInvoiceController
 from fbr_digital_invoicing.api import FBRDigitalInvoicingAPI  
 from frappe.utils import cint
+from frappe.utils import get_link_to_form
+from frappe.exceptions import ValidationError
 import pyqrcode
 
 
 class SalesInvoice(SalesInvoiceController):
-    def on_submit(self):
-        super().on_submit()
+    def before_submit(self):
         if not self.custom_post_to_fdi:
             return
         if self.fbr_sale_type.furthertax:
@@ -19,9 +23,6 @@ class SalesInvoice(SalesInvoiceController):
             if not rate or rate <= 0:
                 frappe.throw("Please select a valid Further Tax Rate")
 
-        data = self.get_mapped_data()
-        api_log = frappe.new_doc("FDI Request Log")
-        api_log.request_data = frappe.as_json(data, indent=4)
         settings = frappe.get_doc("FBR Digital Invoicing Settings")
         
         try:
@@ -38,44 +39,75 @@ class SalesInvoice(SalesInvoiceController):
                 frappe.throw("Please select a valid environment")
             
 
-            api = FBRDigitalInvoicingAPI()
+            api = FBRDigitalInvoicingAPI(self.company)
             response = api.make_request("POST", endpoint, self.get_mapped_data())
-            resdata = response.get("validationResponse")
-            
-            if resdata.get("status") == "Valid":
-                self.custom_fbr_invoice_no = response.get("invoiceNumber")
-                frappe.db.set_value("Sales Invoice", self.name, "custom_fbr_invoice_no", self.custom_fbr_invoice_no)
-                url = pyqrcode.create(self.custom_fbr_invoice_no)
-                url.svg(frappe.get_site_path()+'/public/files/'+self.name+'_online_qrcode.svg', scale=8)
-                self.custom_qr_code = '/files/'+self.name+'_online_qrcode.svg'
-                frappe.db.set_value("Sales Invoice", self.name, "custom_qr_code", self.custom_qr_code)
-                api_log.response_data = frappe.as_json(response, indent=4)
-                api_log.save()
-                frappe.msgprint("Invoice successfully submitted to FBR Invoice.")
-            else:
-                api_log.response_data = frappe.as_json(response, indent=4)
-                api_log.save()
+            response = self.normalize_fbr_response(response)
+
+            if not isinstance(response, dict):
                 frappe.log_error(
                     title="FBR Invoicing API Error",
                     message=frappe.as_json(response, indent=4)
                 )
-                frappe.throw(
-                    "Error in FBR Invoicing" 
+                frappe.throw("Invalid response from FBR Invoicing API. Please check FDI Request Log.")
+
+            resdata = response.get("validationResponse")
+            if not resdata and all(k in response for k in ("status", "statusCode")):
+                resdata = response
+
+            if isinstance(resdata, str):
+                try:
+                    resdata = frappe.parse_json(resdata)
+                except Exception:
+                    try:
+                        resdata = json.loads(resdata)
+                    except Exception:
+                        resdata = None
+
+            if not resdata or not isinstance(resdata, dict):
+                frappe.log_error(
+                    title="FBR Invoicing API Error",
+                    message=frappe.as_json(response, indent=4)
                 )
+                frappe.throw("Invalid response from FBR Invoicing API. Please check FDI Request Log.")
+            
+            if resdata.get("status") == "Valid":
+                self.custom_fbr_invoice_no = response.get("invoiceNumber")
+                self.custom_qr_code = None
+                frappe.msgprint("Invoice successfully validated by FBR.")
+            else:
+                frappe.log_error(
+                    title="FBR Invoicing API Error",
+                    message=frappe.as_json(response, indent=4)
+                )
+
+                error_message = resdata.get("error") or "FBR rejected the invoice."
+                friendly_hint = self.get_fbr_validation_hint(resdata)
+                frappe.throw(f"{error_message} {friendly_hint}".strip())
                   
                 
         except Exception as e:
-            api_log.error = frappe.as_json(e, indent=4)
-            api_log.save()
-                
+            if isinstance(e, ValidationError):
+                raise
+
             frappe.log_error(
                title="FBR Invoicing API Error",
-               message=frappe.as_json(response, indent=4)
+               message=frappe.get_traceback()
             )
-            
+
             frappe.throw(f"Error while submitting invoice to FBR: {str(e)}")
 
-        # api_log.save()
+    def on_submit(self):
+        super().on_submit()
+        if not self.custom_post_to_fdi:
+            return
+        if not self.custom_fbr_invoice_no:
+            return
+
+        url = pyqrcode.create(self.custom_fbr_invoice_no)
+        url.svg(frappe.get_site_path() + '/public/files/' + self.name + '_online_qrcode.svg', scale=8)
+        self.custom_qr_code = '/files/' + self.name + '_online_qrcode.svg'
+        frappe.db.set_value("Sales Invoice", self.name, "custom_qr_code", self.custom_qr_code)
+        frappe.msgprint("Invoice successfully submitted to FBR Invoice.")
         
     def get_mapped_data(self):
 
@@ -100,18 +132,19 @@ class SalesInvoice(SalesInvoiceController):
         
        
         data["items"] = self.get_items()
-        frappe.log_error(frappe.as_json(data,indent=4),"test")
         return data
     
     def get_items(self):
         settings = frappe.get_doc("FBR Digital Invoicing Settings")
         items = []
+        taxes = self.taxes or []
+        sales_tax_rate = taxes[0].rate if len(taxes) > 0 else 0
         for item in self.items:
             further_tax = 0
             uom = self.get_and_set_uom(item.custom_hs_code)
-            tax_amount = round(item.amount * (self.taxes[0].rate /100), 2)
+            tax_amount = round(item.amount * (sales_tax_rate / 100), 2) if sales_tax_rate else 0
             try:
-                tax_rate = self.taxes[1].rate
+                tax_rate = taxes[1].rate
                 if tax_rate and tax_rate > 0:
                     further_tax = round(item.amount * (tax_rate / 100), 2)
             except IndexError:
@@ -120,7 +153,7 @@ class SalesInvoice(SalesInvoiceController):
             item_data = {
                 "hsCode": item.custom_hs_code,  # Default HS Code if not set
                 "productDescription": f"{item.item_code}-{item.idx}" if settings.get("make_items_unique") == 1 else item.item_code,
-                "rate":"Exempt" if self.fbr_sale_type.tax_exempted else f"{cint(self.taxes[0].rate)}%",
+                "rate":"Exempt" if self.fbr_sale_type.tax_exempted else f"{cint(sales_tax_rate)}%",
                 "uoM": uom,
                 "quantity": item.qty,
                 "totalValues": round(item.amount + tax_amount, 2),  # Placeholder, adjust as needed
@@ -144,15 +177,99 @@ class SalesInvoice(SalesInvoiceController):
         if frappe.db.exists("HS Code", hs_code):
             hs_code_doc = frappe.get_doc("HS Code", hs_code)
         
-        api = FBRDigitalInvoicingAPI() 
+        api = FBRDigitalInvoicingAPI(self.company) 
         response = api.make_request("GET", f"/pdi/v2/HS_UOM?hs_code={hs_code}&annexure_id=3")
-        if response:
-            #res = response.json()
+        if not response:
+            return None
+
+        uom = None
+        if isinstance(response, list) and response:
             uom = response[0].get("description")
+        elif isinstance(response, dict):
+            uom = response.get("description")
+            if not uom and isinstance(response.get("data"), list) and response.get("data"):
+                uom = response.get("data")[0].get("description")
+
+        if uom:
             hs_code_doc.hs_code = hs_code
             hs_code_doc.uom = uom
             hs_code_doc.save()
             return uom
+        return None
+
+    def get_fbr_validation_hint(self, validation_response):
+        error_code = (validation_response or {}).get("errorCode")
+        error_text = (validation_response or {}).get("error", "")
+
+        # Seller province missing/invalid -> Company.custom_province
+        if error_code == "0073" or "seller province" in (error_text or "").lower():
+            company_link = get_link_to_form("Company", self.company)
+            return f"Please set Seller Province in Company {company_link}."
+
+        return ""
+
+    def normalize_fbr_response(self, response):
+        if isinstance(response, dict):
+            return response
+        if isinstance(response, list) and response:
+            if isinstance(response[0], dict):
+                return response[0]
+            return None
+        if isinstance(response, (bytes, bytearray)):
+            try:
+                response = response.decode("utf-8", errors="ignore")
+            except Exception:
+                return None
+        if isinstance(response, str):
+            s = response.strip()
+            try:
+                return frappe.parse_json(s)
+            except Exception:
+                pass
+            try:
+                return json.loads(s)
+            except Exception:
+                pass
+            if s.startswith("b'") or s.startswith('b"'):
+                try:
+                    literal = ast.literal_eval(s)
+                    if isinstance(literal, (bytes, bytearray)):
+                        s = literal.decode("utf-8", errors="ignore").strip()
+                        try:
+                            return json.loads(s)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            try:
+                literal = ast.literal_eval(s)
+                if isinstance(literal, dict):
+                    return literal
+            except Exception:
+                pass
+            if "{" in s and "}" in s:
+                snippet = s[s.find("{"): s.rfind("}") + 1]
+                try:
+                    return json.loads(snippet)
+                except Exception:
+                    try:
+                        literal = ast.literal_eval(snippet)
+                        if isinstance(literal, dict):
+                            return literal
+                    except Exception:
+                        pass
+                    match = re.search(r"\{.*\}", s, flags=re.DOTALL)
+                    if match:
+                        try:
+                            return json.loads(match.group(0))
+                        except Exception:
+                            try:
+                                literal = ast.literal_eval(match.group(0))
+                                if isinstance(literal, dict):
+                                    return literal
+                            except Exception:
+                                return None
+        return None
     @property
     def fbr_sale_type(self):
         custom_fbr_sale_type = self.custom_fbr_sale_type

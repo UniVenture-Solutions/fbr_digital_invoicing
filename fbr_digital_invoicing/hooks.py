@@ -248,8 +248,10 @@ fixtures = [
             "name", "in", [
                 #Company Fields 
                 "Company-custom_province",
+                "Company-custom_fbr_digital_invoicing_token",
                 #Delivery Note Item Fields
                 "Delivery Note Item-custom_hs_code",
+                
                 #Item Fiels
                 "Item-custom_hs_code",
                 #Sales Invoice Item Fields
@@ -261,7 +263,8 @@ fixtures = [
                 "Sales Invoice-custom_post_to_fdi",
                 "Sales Invoice-custom_qr_code",
                 #Sales Order Item Fields
-                "Sales Order Item-custom_hs_code"
+                "Sales Order Item-custom_hs_code",
+
             ]
         ]
     ]},
